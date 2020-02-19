@@ -1,0 +1,214 @@
+<DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="theme-color" content="#1295F1" />
+		<meta charset="utf-8">
+		<title>Dijkstra's algorithm</title>
+	</head>
+	<body>
+		<canvas id="graph" width="500" height="500" style="border: 1px solid #D3D3D3;"></canvas>
+        <br>Show nodegraph: <input type="checkbox" id="showNodes" onclick="toggleNodes()">
+        Show closed list: <input type="checkbox" id="showClosed" onclick="toggleClosed()">
+        <div id="log"></div>
+		<script type="text/javascript" src="binaryheap.js"></script>
+		<script type="text/javascript" src="vector.js"></script>
+		<script type="text/javascript" src="map.js"></script>
+		<script type="text/javascript" src="nodegraph.js"></script>
+		<script type="text/javascript" src="ucs.js"></script>
+		<script type="text/javascript">
+			var canvas		= document.getElementById("graph");
+			var log			= document.getElementById("log");
+			var ctx			= canvas.getContext("2d");
+            var nodesBox    = document.getElementById("showNodes");
+            var closedBox   = document.getElementById("showClosed");
+			
+			var map			= new Map();
+			var dijkstra	= new Dijkstra();
+            var nodegraph	= new NodeGraph(map, canvas.width, canvas.height);
+            var showNodes   = nodesBox.checked;
+            var showClosed  = closedBox.checked;
+
+
+			// Walls
+			var obstacle = new Obstacle(new Vector2(150, 150), new Vector2(300, 10));
+            map.addObstacle(obstacle);
+			
+			var obstacle = new Obstacle(new Vector2(150, 150), new Vector2(10, 200));
+			map.addObstacle(obstacle);
+			
+			var obstacle = new Obstacle(new Vector2(200, 300), new Vector2(10, 200));
+			map.addObstacle(obstacle);
+			
+			var obstacle = new Obstacle(new Vector2(250, 100), new Vector2(10, 50));
+			map.addObstacle(obstacle);
+
+			// Big Boxes
+            var obstacle = new Obstacle(new Vector2(20, 50), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(50, 130), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(150, 40), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(350, 80), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(200, 200), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+			
+            var obstacle = new Obstacle(new Vector2(250, 250), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+			
+            var obstacle = new Obstacle(new Vector2(306, 306), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+			
+            var obstacle = new Obstacle(new Vector2(376, 270), new Vector2(50, 50));
+            map.addObstacle(obstacle);
+
+            // Small boxes
+            var obstacle = new Obstacle(new Vector2(80, 280), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+            
+            var obstacle = new Obstacle(new Vector2(120, 390), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+            
+            var obstacle = new Obstacle(new Vector2(30, 330), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+            
+            var obstacle = new Obstacle(new Vector2(40, 220), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(306, 386), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+
+            var obstacle = new Obstacle(new Vector2(226, 316), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+            
+            var obstacle = new Obstacle(new Vector2(286, 200), new Vector2(25, 25));
+            map.addObstacle(obstacle);
+            
+            var obstacle = new Obstacle(new Vector2(356, 200), new Vector2(25, 50));
+            map.addObstacle(obstacle);
+			
+
+			var graphTime = window.performance.now(); // Benchmarking
+			nodegraph.generate();
+			nodegraph.trim(); // Could be a lot better
+			graphTime = window.performance.now() - graphTime;
+
+
+			var mouseNode	= new GraphNode(0, 0);
+			var targetNode	= nodegraph.nodes[0];
+
+			function updateMap(x, y) {
+				log.innerHTML = "";
+				
+				mouseNode.x = x;
+				mouseNode.y = y;
+				nodegraph.connectNeighbors(mouseNode);
+
+
+				var pathTime = window.performance.now(); // Benchmarking
+				var path = dijkstra.compute(mouseNode, targetNode);
+				pathTime = window.performance.now() - pathTime;
+
+
+				var drawTime = window.performance.now(); // Benchmarking
+				if (path.length > 0) {
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    map.drawObstacles(ctx);
+                    if (showNodes) {
+                        nodegraph.drawNodes();
+                    }
+                    
+                    // Show closed set
+                    if (showClosed) {
+                        for (i in dijkstra.closedSet) {
+                            if (dijkstra.closedSet[i].parent) {
+                                ctx.beginPath();
+                                ctx.moveTo(dijkstra.closedSet[i].x, dijkstra.closedSet[i].y);
+                                ctx.lineTo(dijkstra.closedSet[i].parent.x, dijkstra.closedSet[i].parent.y);
+                                ctx.strokeStyle = "#0000FF";
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                            }
+
+                            ctx.beginPath();
+                            ctx.fillStyle = "#0000FF";
+                            ctx.fillRect(dijkstra.closedSet[i].x - 3, dijkstra.closedSet[i].y - 3, 6, 6);
+                            ctx.stroke();
+                        }
+                    }
+                    
+                    // Draw path line
+					ctx.beginPath();
+					ctx.moveTo(mouseNode.x, mouseNode.y);
+					for (i in path) {
+						ctx.lineTo(path[i].x, path[i].y);
+					}
+					ctx.strokeStyle = "#FF0000";
+					ctx.lineWidth = 6;
+                    ctx.stroke();
+                    
+                    // Draw path nodes
+                    for (i in path) {
+                        ctx.beginPath();
+                        ctx.fillStyle = "#990000";
+                        ctx.fillRect(path[i].x - 3, path[i].y - 3, 6, 6);
+                        ctx.stroke();
+                    }
+				}
+				drawTime = window.performance.now() - drawTime;
+
+
+				log.innerHTML += "Nodegraph generation time: " + graphTime + "ms";
+                log.innerHTML += "<br>Total nodes: " + (nodegraph.nodes.length + 1);
+                log.innerHTML += "<br>Drawing time: " + drawTime + "ms";
+				log.innerHTML += "<br>Pathfinding time: " + pathTime + "ms";
+
+				if (path.length > 0) {
+					log.innerHTML += "<br>Visited nodes: " + dijkstra.closedSet.length;
+					log.innerHTML += "<br>Nodes in path: " + path.length;
+					log.innerHTML += "<br>Shortest distance: " + Math.round(targetNode.gCost * 100) / 100;
+				}
+			}
+
+			updateMap(canvas.width - 10, canvas.height - 10);
+
+			canvas.addEventListener('mousemove', (e) => {
+				updateMap(e.offsetX, e.offsetY);
+			}, true);
+
+			canvas.addEventListener('mousedown', (e) => {
+				var closest = null;
+				var lastlen = 0;
+				for (i in nodegraph.nodes) {
+					var node = nodegraph.nodes[i];
+					var len = node.sub(mouseNode).lengthSqr;
+					if (!closest || len < lastlen) {
+						lastlen = len;
+						closest = node;
+					}
+				}
+
+				if (closest) {
+					targetNode = closest;
+					updateMap(mouseNode.x, mouseNode.y);
+				}
+            }, true);
+            
+            function toggleNodes() {
+                showNodes = nodesBox.checked;
+                updateMap(mouseNode.x, mouseNode.y);
+            }
+            
+            function toggleClosed() {
+                showClosed = closedBox.checked;
+                updateMap(mouseNode.x, mouseNode.y);
+            }
+		</script>
+	</body>
+</html>
